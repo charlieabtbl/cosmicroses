@@ -54,19 +54,19 @@ struct Contributor {
 //  CONTRIBUTORS
 
 @storage_var
-func workContributors(i: felt) -> (contributors: Contributor) {
+func workContributors(i: felt) -> (contributor: Contributor) {
 }
 
 @storage_var
-func _workContributorsLen() -> (len: felt) {
+func workContributorsLen() -> (len: felt) {
 }
 
 @storage_var
-func recContributors(token_id: Uint256, i: felt) -> (contributors: Contributor) {
+func recContributors(token_id: Uint256, i: felt) -> (contributor: Contributor) {
 }
 
 @storage_var
-func _recContributorsLen(token_id: Uint256) -> (len: felt) {
+func recContributorsLen(token_id: Uint256) -> (len: felt) {
 }
 
 //  TOKEN
@@ -166,7 +166,7 @@ func findWorkContributorByAddress{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*
 ) -> (contributor: Contributor) {
 
     alloc_locals;
-    let (contributors_len) = _workContributorsLen.read();
+    let (contributors_len) = workContributorsLen.read();
     let (index) = _findIndexOfWorkContributor(address, contributors_len);
 
     with_attr error_message("Contributor not found"){
@@ -184,7 +184,7 @@ func findRecContributorByAddress{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*,
 ) -> (contributor: Contributor) {
 
     alloc_locals;
-    let (contributors_len) = _recContributorsLen.read(tokenId);
+    let (contributors_len) = recContributorsLen.read(tokenId);
     let (index) = _findIndexOfRecContributor(tokenId, address, contributors_len);
 
     with_attr error_message("Contributor not found"){
@@ -205,6 +205,15 @@ func supportsInterface{
     range_check_ptr
 }(interfaceId: felt) -> (success: felt) {
     return ERC165.supports_interface(interfaceId);
+}
+
+@view
+func balanceOf{
+        syscall_ptr: felt*,
+        pedersen_ptr: HashBuiltin*,
+        range_check_ptr
+}(owner: felt) -> (balance: Uint256) {
+    return ERC721.balance_of(owner);
 }
 
 @view
@@ -293,7 +302,7 @@ func setWorkContributor{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_ch
     Pausable.assert_not_paused();
     AccessControl.assert_only_role(DEFAULT_ADMIN_ROLE);
 
-    let (contributors_len) = _workContributorsLen.read();
+    let (contributors_len) = workContributorsLen.read();
     let (index) = _findIndexOfWorkContributor(address, contributors_len);
 
     //If contributor does not exist
@@ -305,7 +314,7 @@ func setWorkContributor{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_ch
                 share=share,
             )
         );
-        _workContributorsLen.write(contributors_len + 1);
+        workContributorsLen.write(contributors_len + 1);
         WorkContributorAdded.emit(address, share);
         return();
     }
@@ -330,7 +339,7 @@ func setRecContributor{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_che
     Pausable.assert_not_paused();
     assert_only_token_owner(tokenId);
 
-    let (contributors_len) = _recContributorsLen.read(tokenId);
+    let (contributors_len) = recContributorsLen.read(tokenId);
     let (index) = _findIndexOfRecContributor(tokenId, address, contributors_len);
 
     //If contributor does not exist
@@ -343,7 +352,7 @@ func setRecContributor{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_che
                 share=share,
             )
         );
-        _recContributorsLen.write(tokenId, contributors_len + 1);
+        recContributorsLen.write(tokenId, contributors_len + 1);
         RecContributorAdded.emit(tokenId, address, share);
         return();
     }
@@ -577,13 +586,10 @@ func _findIndexOfRecContributor {
     }
 
     let current_index = counter - 1;
-    
     let (contributor) = recContributors.read(tokenId, current_index);
-
     if(contributor.address == address){
         return (counter-1,);
     }
-
     let(indexOfRecContributor) = _findIndexOfRecContributor(tokenId, address, counter-1);
     return(indexOfRecContributor,);
 }
@@ -599,13 +605,10 @@ func _findIndexOfWorkContributor {
     }
 
     let current_index = counter - 1;
-    
     let (contributor) = workContributors.read(current_index);
-
     if(contributor.address == address){
         return (counter-1,);
     }
-
     let(indexOfWorkContributor) = _findIndexOfWorkContributor(address, counter-1);
     return(indexOfWorkContributor,);
 }
