@@ -3,9 +3,8 @@ import { starknet } from "hardhat";
 import { Account, StarknetContract } from "hardhat/types";
 import { uint256 } from "starknet";
 import { ContributorType } from "./interfaces/contributor.interfaces";
-import { RECORDING_LICENSEE, setAndFindContributors } from "./utils";
+import { RECORDING_LICENSEE, setAndGetContributors } from "./utils";
 
-let proxy_admin: Account;
 let default_admin: Account;
 let work_contributor_1: Account;
 let work_contributor_2: Account;
@@ -15,8 +14,7 @@ let rec_contributor_2: Account;
 let rec_contributor_3: Account;
 let rec_licensee_1: Account;
 let rec_licensee_2: Account;
-let other_account: Account;
-let proxy: StarknetContract;
+let contract: StarknetContract;
 
 const name = starknet.shortStringToBigInt("test");
 const symbol = starknet.shortStringToBigInt("TST");
@@ -26,7 +24,6 @@ describe("Test Work.cairo", function () {
 
   before(async () => {
     /* ==== DEPLOY ACCOUNTS ==== */
-    proxy_admin = await starknet.deployAccount("OpenZeppelin");
     default_admin = await starknet.deployAccount("OpenZeppelin");
     work_contributor_1 = await starknet.deployAccount("OpenZeppelin");
     work_contributor_2 = await starknet.deployAccount("OpenZeppelin");
@@ -36,30 +33,19 @@ describe("Test Work.cairo", function () {
     rec_contributor_3 = await starknet.deployAccount("OpenZeppelin");
     rec_licensee_1 = await starknet.deployAccount("OpenZeppelin");
     rec_licensee_2 = await starknet.deployAccount("OpenZeppelin");
-    other_account = await starknet.deployAccount("OpenZeppelin");
 
-    const implementationFactory = await starknet.getContractFactory("Work");
-    const implementationClassHash = await proxy_admin.declare(
-      implementationFactory
-    );
-
-    // uses delegate proxy defined in contracts/upgrades/Proxy.cairo
-    const proxyFactory = await starknet.getContractFactory("Proxy");
-    proxy = await proxyFactory.deploy({
-      implementation_hash: implementationClassHash,
-    });
-    console.log("Deployed proxy to", proxy.address);
-
-    proxy.setImplementation(implementationFactory);
-
-    await proxy_admin.invoke(proxy, "initializer", {
-      name,
-      symbol,
+    const contractFactory = await starknet.getContractFactory("Work");
+    console.log("Started deployment");
+    contract = await contractFactory.deploy({
+      name: name,
+      symbol: symbol,
       admin: default_admin.address,
-      proxy_admin: proxy_admin.address,
     });
 
-    console.log("Work contract is initialized!");
+    console.log("Deployment transaction hash:", contract.deployTxHash);
+    expect(contract.deployTxHash.startsWith("0x")).to.be.true;
+    console.log("Deployed at", contract.address);
+    expect(contract.address.startsWith("0x")).to.be.true;
   });
 
   //  * ======================= *
@@ -70,19 +56,19 @@ describe("Test Work.cairo", function () {
     const role = BigInt(RECORDING_LICENSEE);
 
     it("should grant RECORDING_LICENSEE role", async () => {
-      await default_admin.invoke(proxy, "grantRole", {
+      await default_admin.invoke(contract, "grantRole", {
         role,
         user: rec_licensee_1.address,
       });
 
       const role_rec_licensee_1 = (
-        await proxy.call("hasRole", {
+        await contract.call("hasRole", {
           role,
           user: rec_licensee_1.address,
         })
       ).has_role;
       const role_rec_licensee_2 = (
-        await proxy.call("hasRole", {
+        await contract.call("hasRole", {
           role,
           user: rec_licensee_2.address,
         })
@@ -94,7 +80,7 @@ describe("Test Work.cairo", function () {
 
     it("should revert, only default_admin can grant a role", async () => {
       try {
-        await rec_licensee_2.invoke(proxy, "grantRole", {
+        await rec_licensee_2.invoke(contract, "grantRole", {
           role,
           user: rec_licensee_2.address,
         });
@@ -104,26 +90,26 @@ describe("Test Work.cairo", function () {
     });
 
     it("should revoke RECORDING_LICENSEE role", async () => {
-      await default_admin.invoke(proxy, "grantRole", {
+      await default_admin.invoke(contract, "grantRole", {
         role,
         user: rec_licensee_2.address,
       });
 
       let role_rec_licensee_2 = (
-        await proxy.call("hasRole", {
+        await contract.call("hasRole", {
           role,
           user: rec_licensee_2.address,
         })
       ).has_role;
       expect(role_rec_licensee_2).to.deep.equal(1n);
 
-      await default_admin.invoke(proxy, "revokeRole", {
+      await default_admin.invoke(contract, "revokeRole", {
         role,
         user: rec_licensee_2.address,
       });
 
       role_rec_licensee_2 = (
-        await proxy.call("hasRole", {
+        await contract.call("hasRole", {
           role,
           user: rec_licensee_2.address,
         })
@@ -138,14 +124,17 @@ describe("Test Work.cairo", function () {
 
   describe("Test Work Contributors", () => {
     it("should set single work contributor", async () => {
-      await default_admin.invoke(proxy, "setWorkContributor", {
+      await default_admin.invoke(contract, "setWorkContributor", {
         address: work_contributor_1.address,
         share: 100n,
       });
 
-      const { contributor } = await proxy.call("findWorkContributorByAddress", {
-        address: work_contributor_1.address,
-      });
+      const { contributor } = await contract.call(
+        "getWorkContributorByAddress",
+        {
+          address: work_contributor_1.address,
+        }
+      );
       expect(contributor.address).to.deep.equal(
         BigInt(work_contributor_1.address)
       );
@@ -158,13 +147,13 @@ describe("Test Work.cairo", function () {
         { address: work_contributor_3.address, share: 50n },
       ];
 
-      const _setAndFindContributors = await setAndFindContributors(
+      const _setAndGetContributors = await setAndGetContributors(
         default_admin,
-        proxy,
+        contract,
         contributors,
         ContributorType.WORK
       );
-      _setAndFindContributors.map((contributor, index) => {
+      _setAndGetContributors.map((contributor, index) => {
         expect(contributor.address).to.deep.equal(
           BigInt(contributors[index].address)
         );
@@ -176,13 +165,13 @@ describe("Test Work.cairo", function () {
         { address: work_contributor_1.address, share: 200n },
         { address: work_contributor_3.address, share: 1000n },
       ];
-      const _setAndFindContributors = await setAndFindContributors(
+      const _setAndGetContributors = await setAndGetContributors(
         default_admin,
-        proxy,
+        contract,
         updateContributors,
         ContributorType.WORK
       );
-      _setAndFindContributors.map((contributor, index) => {
+      _setAndGetContributors.map((contributor, index) => {
         expect(contributor.address).to.deep.equal(
           BigInt(updateContributors[index].address)
         );
@@ -193,7 +182,7 @@ describe("Test Work.cairo", function () {
     });
     it("should revert if the setter is not default_admin", async () => {
       try {
-        await work_contributor_1.invoke(proxy, "setWorkContributor", {
+        await work_contributor_1.invoke(contract, "setWorkContributor", {
           address: work_contributor_1.address,
           share: 100n,
         });
@@ -215,36 +204,36 @@ describe("Test Work.cairo", function () {
         { address: rec_contributor_3.address, share: 50n },
       ];
 
-      await rec_licensee_1.invoke(proxy, "createRecord", {
+      await rec_licensee_1.invoke(contract, "createRecord", {
         tokenURI: starknet.shortStringToBigInt("test1.io"),
         contributors: contributors,
       });
 
-      await rec_licensee_1.invoke(proxy, "createRecord", {
+      await rec_licensee_1.invoke(contract, "createRecord", {
         tokenURI: starknet.shortStringToBigInt("test2.io"),
         contributors: contributors,
       });
 
       const owner = (
-        await proxy.call("ownerOf", {
-          token_id: uint256.bnToUint256(1),
+        await contract.call("ownerOf", {
+          tokenId: uint256.bnToUint256(1),
         })
       ).owner;
 
       const balance = (
-        await proxy.call("balanceOf", {
+        await contract.call("balanceOf", {
           owner: rec_licensee_1.address,
         })
       ).balance.low;
 
       const tokenURI_1 = (
-        await proxy.call("tokenURI", {
+        await contract.call("tokenURI", {
           tokenId: uint256.bnToUint256(1),
         })
       ).tokenURI;
 
       const tokenURI_2 = (
-        await proxy.call("tokenURI", {
+        await contract.call("tokenURI", {
           tokenId: uint256.bnToUint256(2),
         })
       ).tokenURI;
@@ -261,19 +250,19 @@ describe("Test Work.cairo", function () {
       //CHECK WHETHER THE RECORD CONTRIBUTORS HAVE BEEN SET UP
 
       const share_contributor_1 = (
-        await proxy.call("findRecContributorByAddress", {
+        await contract.call("getRecordContributorByAddress", {
           tokenId: uint256.bnToUint256(1),
           address: rec_contributor_1.address,
         })
       ).contributor.share;
       const share_contributor_2 = (
-        await proxy.call("findRecContributorByAddress", {
+        await contract.call("getRecordContributorByAddress", {
           tokenId: uint256.bnToUint256(1),
           address: rec_contributor_2.address,
         })
       ).contributor.share;
       const share_contributor_3 = (
-        await proxy.call("findRecContributorByAddress", {
+        await contract.call("getRecordContributorByAddress", {
           tokenId: uint256.bnToUint256(1),
           address: rec_contributor_3.address,
         })

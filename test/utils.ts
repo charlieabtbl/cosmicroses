@@ -7,13 +7,13 @@ import {
 export const RECORDING_LICENSEE =
   "0x4f96f87f6963bb246f2c30526628466840c642dc5c50d5a67777c6cc0e44ab5";
 
-export async function setAndFindContributors(
+export async function setAndGetContributors(
   caller: Account,
   contract: StarknetContract,
   contributors: Contributor[],
   contributorType: ContributorType
 ): Promise<Contributor[]> {
-  let findContributors: Contributor[] = [];
+  let getContributors: Contributor[] = [];
 
   if (contributors.length > 0) {
     // SET CONTRIBUTORS
@@ -21,28 +21,28 @@ export async function setAndFindContributors(
       contract,
       contributorType == ContributorType.WORK
         ? "setBatchWorkContributors"
-        : "setBatchRecContributors",
+        : "setBatchRecordContributors",
       {
         contributors: contributors,
       }
     );
 
-    // FIND CONTRIBUTORS
+    // GET CONTRIBUTORS
 
     for (let i = 0; i < contributors.length; i++) {
       const contributor_: Contributor = (
         await contract.call(
           contributorType == ContributorType.WORK
-            ? "findWorkContributorByAddress"
-            : "findRecContributorByAddress",
+            ? "getWorkContributorByAddress"
+            : "getRecordContributorByAddress",
           {
             address: contributors[i].address,
           }
         )
       ).contributor;
 
-      findContributors.push(contributor_);
+      getContributors.push(contributor_);
     }
   }
-  return findContributors;
+  return getContributors;
 }
