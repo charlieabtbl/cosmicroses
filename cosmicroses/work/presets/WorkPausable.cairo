@@ -200,17 +200,6 @@ func createRecord{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_pt
     return(TRUE,);
 }
 
-@external
-func transferRecordToken{
-        syscall_ptr: felt*,
-        pedersen_ptr: HashBuiltin*,
-        range_check_ptr
-}(to: felt, tokenId: Uint256) -> (success: felt) {
-    Pausable.assert_not_paused();
-    WORK.transfer_record_ownership(to, tokenId);
-    return(TRUE,);
-}
-
 // ERC721
 
 @external

@@ -18,12 +18,13 @@ from starkware.cairo.common.alloc import alloc
 from starkware.starknet.common.syscalls import get_caller_address
 from starkware.cairo.common.math import assert_not_equal
 
+from openzeppelin.introspection.erc165.library import ERC165
 from openzeppelin.token.erc721.library import ERC721
 from openzeppelin.access.accesscontrol.library import AccessControl
 from openzeppelin.utils.constants.library import DEFAULT_ADMIN_ROLE
 
-
 from cosmicroses.utils.counter.library import Counter
+from cosmicroses.utils.constants.library import IWORK_ID
 
 //  * ======================= *
 //  * ====== CONSTANTS ====== *
@@ -102,26 +103,6 @@ func WORK_record_contributors_len(token_id: Uint256) -> (len: felt) {
 func WORK_token_id_counter() -> (count: Uint256) {
 }
 
-//  * ======================= *
-//  * ====== MODIFIERS ====== *
-//  * ======================= *
-
-func _assert_only_token_owner{
-    syscall_ptr : felt*,
-    pedersen_ptr : HashBuiltin*,
-    range_check_ptr
-}(token_id: Uint256){
-
-    alloc_locals;
-    let (caller) = get_caller_address();
-    let (owner_of) = ERC721.owner_of(token_id);
-
-    with_attr error_message("WORK: caller is not the owner of the token_id"){
-        assert caller = owner_of;
-    }
-    return ();
-}
-
 namespace WORK {
 
     //  * ======================= *
@@ -136,10 +117,9 @@ namespace WORK {
         
         AccessControl._grant_role(DEFAULT_ADMIN_ROLE, admin);
         AccessControl._grant_role(RECORDING_LICENSEE, admin);
-
         ERC721.initializer(name, symbol);
+        ERC165.register_interface(IWORK_ID);
         WORK_token_id_counter.write(Uint256(0,0));
-
         return ();
     }
 
@@ -360,20 +340,6 @@ namespace WORK {
         );
         return ();
     }
-
-    @external
-    func transfer_record_ownership{
-            syscall_ptr: felt*,
-            pedersen_ptr: HashBuiltin*,
-            range_check_ptr
-    }(to: felt, token_id: Uint256) {
-
-        _assert_only_token_owner(token_id);
-        let (caller) = get_caller_address();
-
-        ERC721.transfer_from(caller, to, token_id);
-        return ();
-    }
 }
 
 //  * ======================= *
@@ -416,5 +382,21 @@ func _find_index_of_work_contributor {
     }
     let(index_of_contributor) = _find_index_of_work_contributor(address, counter-1);
     return(index_of_contributor,);
+}
+
+func _assert_only_token_owner{
+    syscall_ptr : felt*,
+    pedersen_ptr : HashBuiltin*,
+    range_check_ptr
+}(token_id: Uint256){
+
+    alloc_locals;
+    let (caller) = get_caller_address();
+    let (owner_of) = ERC721.owner_of(token_id);
+
+    with_attr error_message("WORK: caller is not the owner of the token_id"){
+        assert caller = owner_of;
+    }
+    return ();
 }
 
