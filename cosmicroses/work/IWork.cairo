@@ -8,6 +8,18 @@ from cosmicroses.work.library import Contributor
 @contract_interface
 namespace IWORK {
 
+    func getNumberOfWorkContributors() -> (number: felt) {
+    }
+
+    func getNumberOfRecordContributors(tokenId: Uint256) -> (number: felt) {
+    }
+
+    func getWorkContributorByIndex(index: felt) -> (contributor: Contributor) {
+    }
+
+    func getRecordContributorByIndex(index: felt, tokenId: Uint256) -> (contributor: Contributor) {
+    }
+
     func getWorkContributorByAddress(address: felt) -> (contributor: Contributor) {
     }
 

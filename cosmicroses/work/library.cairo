@@ -127,6 +127,43 @@ namespace WORK {
     //  * ======= GETTERS ======= *
     //  * ======================= *
 
+
+    func get_number_of_work_contributors{
+        syscall_ptr: felt*, 
+        pedersen_ptr: HashBuiltin*, 
+        range_check_ptr
+    }() -> (number: felt){
+        let (number) = WORK_work_contributors_len.read();
+        return(number,);
+    }
+
+    func get_number_of_record_contributors{
+        syscall_ptr: felt*, 
+        pedersen_ptr: HashBuiltin*, 
+        range_check_ptr
+    }(token_id: Uint256) -> (len: felt){
+        let (len) = WORK_record_contributors_len.read(token_id);
+        return(len,);
+    }
+
+    func get_work_contributor_by_index{
+        syscall_ptr: felt*, 
+        pedersen_ptr: HashBuiltin*, 
+        range_check_ptr
+    }(index: felt) -> (contributor: Contributor){
+        let (contributor) = WORK_work_contributors.read(index);
+        return(contributor,);
+    }  
+
+    func get_record_contributor_by_index{
+        syscall_ptr: felt*, 
+        pedersen_ptr: HashBuiltin*, 
+        range_check_ptr
+    }(index: felt, token_id: Uint256) -> (contributor: Contributor){
+        let (contributor) = WORK_record_contributors.read(token_id, index);
+        return(contributor,);
+    }        
+      
     func get_work_contributor_by_address{
         syscall_ptr: felt*, 
         pedersen_ptr: HashBuiltin*, 

@@ -44,6 +44,36 @@ func initializer{
 // WORK
 
 @view
+func getNumberOfWorkContributors{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}() -> (number: felt) {
+    let (number) = WORK.get_number_of_work_contributors();
+    return(number,);
+}
+
+@view
+func getNumberOfRecordContributors{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}(
+    tokenId: Uint256
+) -> (number: felt) {
+    let (number) = WORK.get_number_of_record_contributors(tokenId);
+    return(number,);
+}
+
+@view
+func getWorkContributorByIndex{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}(
+    index: felt
+) -> (contributor: Contributor) {
+    let (contributor) = WORK.get_work_contributor_by_index(index);
+    return(contributor,);
+}
+
+@view
+func getRecordContributorByIndex{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}(
+    index: felt, tokenId: Uint256
+) -> (contributor: Contributor) {
+    let (contributor) = WORK.get_record_contributor_by_index(index, tokenId);
+    return(contributor,);
+}
+
+@view
 func getWorkContributorByAddress{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}(
     address: felt
 ) -> (contributor: Contributor) {
