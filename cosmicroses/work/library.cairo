@@ -15,7 +15,7 @@
 from starkware.cairo.common.cairo_builtins import HashBuiltin
 from starkware.cairo.common.uint256 import Uint256
 from starkware.cairo.common.alloc import alloc
-from starkware.starknet.common.syscalls import get_caller_address
+from starkware.starknet.common.syscalls import get_caller_address, get_block_timestamp
 from starkware.cairo.common.math import assert_not_equal
 
 from openzeppelin.introspection.erc165.library import ERC165
@@ -47,30 +47,41 @@ struct Contributor {
 
 @event
 func WorkContributorAdded(
-    address: felt, share: felt
+    createdAt: felt,
+    address: felt, 
+    share: felt
 ) {
 }
 
 @event
 func WorkContributorUpdated(
-    address: felt, share: felt
+    updatedAt: felt,
+    address: felt,
+    share: felt
 ) {
 }
 
 @event
 func RecContributorAdded(
-    tokenId: Uint256, address: felt, share: felt
+    createdAt: felt,
+    tokenId: Uint256, 
+    address: felt, 
+    share: felt
 ) {
 }
 
 @event
 func RecContributorUpdated(
-    tokenId: Uint256, address: felt, share: felt
+    updatedAt: felt,
+    tokenId: Uint256, 
+    address: felt, 
+    share: felt
 ) {
 }
 
 @event
 func RecordCreated(
+    createdAt: felt,
     tokenId: Uint256, 
     tokenURI: felt, 
     minter: felt, 
@@ -126,7 +137,6 @@ namespace WORK {
     //  * ======================= *
     //  * ======= GETTERS ======= *
     //  * ======================= *
-
 
     func get_number_of_work_contributors{
         syscall_ptr: felt*, 
@@ -220,6 +230,8 @@ namespace WORK {
         let (contributors_len) = WORK_work_contributors_len.read();
         let (index) = _find_index_of_work_contributor(address, contributors_len);
 
+        let (timestamp) = get_block_timestamp();
+
         //If contributor does not exist
         if(index == -1) {
             WORK_work_contributors.write(
@@ -230,7 +242,11 @@ namespace WORK {
                 )
             );
             WORK_work_contributors_len.write(contributors_len + 1);
-            WorkContributorAdded.emit(address, share);
+            WorkContributorAdded.emit(
+                createdAt=timestamp,
+                address=address, 
+                share=share
+            );
             return();
         }
 
@@ -241,7 +257,12 @@ namespace WORK {
                 share=share,
             )
         );
-        WorkContributorUpdated.emit(address, share);
+
+        WorkContributorUpdated.emit(
+            updatedAt=timestamp,
+            address=address, 
+            share=share,
+        );
         return();
     }
 
@@ -270,7 +291,14 @@ namespace WORK {
                 )
             );
             WORK_record_contributors_len.write(token_id, contributors_len + 1);
-            RecContributorAdded.emit(token_id, address, share);
+
+            let(timestamp) = get_block_timestamp();
+            RecContributorAdded.emit(
+                createdAt=timestamp,
+                tokenId=token_id, 
+                address=address, 
+                share=share
+            );
             return();
         }
 
@@ -282,7 +310,15 @@ namespace WORK {
                 share=share,
             )
         );
-        RecContributorUpdated.emit(token_id, address, share);
+        
+        let(timestamp) = get_block_timestamp();
+
+        RecContributorUpdated.emit(
+            updatedAt=timestamp,
+            tokenId=token_id, 
+            address=address, 
+            share=share,
+        );
         return();
     }
 
@@ -368,7 +404,10 @@ namespace WORK {
             contributors=contributors
         );
 
+        let(timestamp) = get_block_timestamp();
+
         RecordCreated.emit(
+            createdAt=timestamp,
             tokenId=token_id_incremented, 
             tokenURI=token_uri,
             minter=caller,
