@@ -11,10 +11,13 @@ from starkware.starknet.common.syscalls import get_block_timestamp
 from starkware.cairo.common.uint256 import Uint256, uint256_lt
 from starkware.cairo.common.math import assert_not_equal
 
+from openzeppelin.introspection.erc165.library import ERC165
 from openzeppelin.access.accesscontrol.library import AccessControl
 from openzeppelin.utils.constants.library import DEFAULT_ADMIN_ROLE
 from openzeppelin.token.erc20.IERC20 import IERC20
 from openzeppelin.security.safemath.library import SafeUint256
+
+from cosmicroses.utils.constants.library import IPAYEES_ID
 
 //  * ======================= *
 //  * ======= STRUCTS ======= *
@@ -92,6 +95,7 @@ namespace PAYEES {
         }
 
         AccessControl._grant_role(DEFAULT_ADMIN_ROLE, admin);
+        ERC165.register_interface(IPAYEES_ID);
         set_batch_payees(payees_len, payees);
         return ();
     }

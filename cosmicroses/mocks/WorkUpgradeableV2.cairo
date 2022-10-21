@@ -19,8 +19,7 @@ from openzeppelin.token.erc721.library import ERC721
 from openzeppelin.access.accesscontrol.library import AccessControl
 from openzeppelin.utils.constants.library import DEFAULT_ADMIN_ROLE
 
-from cosmicroses.work.library import WORK, Contributor
-from cosmicroses.utils.counter.library import Counter
+from cosmicroses.work.library import WORK
 
 //  * ======================= *
 //  * ======= STORAGE ======= *
@@ -39,15 +38,22 @@ func initializer{
         syscall_ptr: felt*,
         pedersen_ptr: HashBuiltin*,
         range_check_ptr
-    }(name: felt, symbol: felt, admin: felt, proxy_admin: felt){
+    }(  
+        payeesContract: felt, 
+        name: felt, 
+        symbol: felt,
+        admin: felt,
+        proxy_admin: felt
+    ){
     Proxy.initializer(proxy_admin);
-    WORK.initializer(name, symbol, admin);
+    WORK.initializer(payeesContract, name, symbol, admin);
     return ();
 }
 
 //  * ======================= *
 //  * ======= GETTERS ======= *
 //  * ======================= *
+
 @view
 func getVar{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}() ->(
     var: felt
@@ -58,24 +64,25 @@ func getVar{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}() -
     return(var,);
 }
 
-
 // WORK
 
-@view
-func getWorkContributorByAddress{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}(
-    address: felt
-) -> (contributor: Contributor) {
-    let (contributor) = WORK.get_work_contributor_by_address(address);
-    return(contributor,);
-}
+func getWorkPayeesContract{
+    syscall_ptr: felt*, 
+    pedersen_ptr: HashBuiltin*, 
+    range_check_ptr
+}() -> (payeesContract: felt){
+    let(payeesContract) = WORK.get_work_payees_contract();
+    return (payeesContract,);
+}  
 
-@view
-func getRecordContributorByAddress{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}(
-    tokenId: Uint256, address: felt
-) -> (contributor: Contributor) {
-    let (contributor) = WORK.get_record_contributor_by_address(tokenId, address);
-    return(contributor,);
-}
+func getRecordPayeesContract{
+    syscall_ptr: felt*, 
+    pedersen_ptr: HashBuiltin*, 
+    range_check_ptr
+}(tokenId: Uint256) -> (payeesContract: felt){
+    let(payeesContract) = WORK.get_record_payees_contract(tokenId);
+    return (payeesContract,);
+}  
 
 // ERC165
 
@@ -183,44 +190,13 @@ func setVar{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}(
     return();
 }
 
-
-@external
-func setWorkContributor{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}(
-    address: felt, share: felt
-) -> (success: felt) {
-    WORK.set_work_contributor(address, share);
-    return(TRUE,);
-}
-
-@external
-func setRecordContributor{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}(
-    address: felt, share: felt, tokenId: Uint256
-) -> (success: felt) {
-    WORK.set_record_contributor(address, share, tokenId);
-    return(TRUE,);
-}
-
-@external
-func setBatchWorkContributors{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}(
-    contributors_len: felt, contributors: Contributor*
-) -> (success: felt) {
-    WORK.set_batch_work_contributors(contributors_len, contributors);
-    return(TRUE,);
-}
-
-@external
-func setBatchRecordContributors{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}(
-    tokenId: Uint256, contributors_len: felt, contributors: Contributor*
-) -> (success: felt) {
-    WORK.set_batch_record_contributors(tokenId, contributors_len, contributors);
-    return(TRUE,);
-}
+// WORK
 
 @external
 func createRecord{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}(
-    tokenURI: felt, contributors_len: felt, contributors: Contributor*
+    tokenURI: felt, payeesContract: felt
 ) -> (success: felt) {
-    WORK.create_record(tokenURI, contributors_len, contributors);
+    WORK.create_record(tokenURI, payeesContract);
     return(TRUE,);
 }
 
@@ -285,8 +261,8 @@ func upgradeContract{
         syscall_ptr: felt*,
         pedersen_ptr: HashBuiltin*,
         range_check_ptr
-    }(newImplementation: felt) -> (success: felt){
+    }(newImplementation: felt) -> (){
     Proxy.assert_only_admin();
     Proxy._set_implementation_hash(newImplementation);
-    return(TRUE,);
+    return ();
 }

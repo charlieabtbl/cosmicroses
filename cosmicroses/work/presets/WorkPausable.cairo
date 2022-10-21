@@ -19,8 +19,7 @@ from openzeppelin.access.accesscontrol.library import AccessControl
 from openzeppelin.utils.constants.library import DEFAULT_ADMIN_ROLE
 from openzeppelin.security.pausable.library import Pausable
 
-from cosmicroses.work.library import WORK, Contributor
-from cosmicroses.utils.counter.library import Counter
+from cosmicroses.work.library import WORK
 
 //  * ======================= *
 //  * ===== CONSTRUCTOR ===== *
@@ -31,8 +30,13 @@ func constructor{
         syscall_ptr: felt*,
         pedersen_ptr: HashBuiltin*,
         range_check_ptr
-    }(name: felt, symbol: felt, admin: felt){
-    WORK.initializer(name, symbol, admin);
+    }(
+        payeesContract: felt, 
+        name: felt, 
+        symbol: felt,
+        admin: felt
+    ){
+    WORK.initializer(payeesContract, name, symbol, admin);
     return ();
 }
 
@@ -42,51 +46,23 @@ func constructor{
 
 // WORK
 
-@view
-func getNumberOfWorkContributors{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}() -> (number: felt) {
-    let (number) = WORK.get_number_of_work_contributors();
-    return(number,);
-}
+func getWorkPayeesContract{
+    syscall_ptr: felt*, 
+    pedersen_ptr: HashBuiltin*, 
+    range_check_ptr
+}() -> (payeesContract: felt){
+    let(payeesContract) = WORK.get_work_payees_contract();
+    return (payeesContract,);
+}  
 
-@view
-func getNumberOfRecordContributors{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}(
-    tokenId: Uint256
-) -> (number: felt) {
-    let (number) = WORK.get_number_of_record_contributors(tokenId);
-    return(number,);
-}
-
-@view
-func getWorkContributorByIndex{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}(
-    index: felt
-) -> (contributor: Contributor) {
-    let (contributor) = WORK.get_work_contributor_by_index(index);
-    return(contributor,);
-}
-
-@view
-func getRecordContributorByIndex{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}(
-    index: felt, tokenId: Uint256
-) -> (contributor: Contributor) {
-    let (contributor) = WORK.get_record_contributor_by_index(index, tokenId);
-    return(contributor,);
-}
-
-@view
-func getWorkContributorByAddress{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}(
-    address: felt
-) -> (contributor: Contributor) {
-    let (contributor) = WORK.get_work_contributor_by_address(address);
-    return(contributor,);
-}
-
-@view
-func getRecordContributorByAddress{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}(
-    tokenId: Uint256, address: felt
-) -> (contributor: Contributor) {
-    let (contributor) = WORK.get_record_contributor_by_address(tokenId, address);
-    return(contributor,);
-}
+func getRecordPayeesContract{
+    syscall_ptr: felt*, 
+    pedersen_ptr: HashBuiltin*, 
+    range_check_ptr
+}(tokenId: Uint256) -> (payeesContract: felt){
+    let(payeesContract) = WORK.get_record_payees_contract(tokenId);
+    return (payeesContract,);
+}  
 
 // ERC165
 
@@ -185,48 +161,14 @@ func paused{
 //  * ====== EXTERNALS ====== *
 //  * ======================= *
 
-@external
-func setWorkContributor{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}(
-    address: felt, share: felt
-) -> (success: felt) {
-    Pausable.assert_not_paused();
-    WORK.set_work_contributor(address, share);
-    return(TRUE,);
-}
-
-@external
-func setRecordContributor{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}(
-    address: felt, share: felt, tokenId: Uint256
-) -> (success: felt) {
-    Pausable.assert_not_paused();
-    WORK.set_record_contributor(address, share, tokenId);
-    return(TRUE,);
-}
-
-@external
-func setBatchWorkContributors{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}(
-    contributors_len: felt, contributors: Contributor*
-) -> (success: felt) {
-    Pausable.assert_not_paused();
-    WORK.set_batch_work_contributors(contributors_len, contributors);
-    return(TRUE,);
-}
-
-@external
-func setBatchRecordContributors{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}(
-    tokenId: Uint256, contributors_len: felt, contributors: Contributor*
-) -> (success: felt) {
-    Pausable.assert_not_paused();
-    WORK.set_batch_record_contributors(tokenId, contributors_len, contributors);
-    return(TRUE,);
-}
+// WORK
 
 @external
 func createRecord{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}(
-    tokenURI: felt, contributors_len: felt, contributors: Contributor*
+    tokenURI: felt, payeesContract: felt
 ) -> (success: felt) {
     Pausable.assert_not_paused();
-    WORK.create_record(tokenURI, contributors_len, contributors);
+    WORK.create_record(tokenURI, payeesContract);
     return(TRUE,);
 }
 

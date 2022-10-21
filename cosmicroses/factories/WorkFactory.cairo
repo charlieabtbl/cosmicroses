@@ -48,7 +48,12 @@ func work_proxy_class_hash() -> (value: felt) {
 //  * ======================= *
 
 @event
-func WorkContractDeployed(name: felt, caller: felt, contract_address: felt) {
+func WorkContractDeployed(
+    name: felt, 
+    caller: felt, 
+    contract_address: felt,
+    payees_contract: felt    
+) {
 }
 
 //  * ======================= *
@@ -79,7 +84,7 @@ func deploy_work_proxy_contract{
     pedersen_ptr: HashBuiltin*,
     range_check_ptr,
 } (
-    name: felt, symbol: felt,
+    payeesContract: felt, name: felt, symbol: felt,
 ) ->(contract_address: felt) {
 
     let (current_salt) = salt.read();
@@ -100,10 +105,11 @@ func deploy_work_proxy_contract{
     salt.write(value=current_salt + 1);
 
     let (initialize_calldata: felt*) = alloc();
-    assert initialize_calldata[0] = name;
-    assert initialize_calldata[1] = symbol;
-    assert initialize_calldata[2] = caller_address; //contract admin
-    assert initialize_calldata[3] = proxy_admin;    //proxy admin
+    assert initialize_calldata[0] = payeesContract;
+    assert initialize_calldata[1] = name;
+    assert initialize_calldata[2] = symbol;
+    assert initialize_calldata[3] = caller_address; //contract admin
+    assert initialize_calldata[4] = proxy_admin;    //proxy admin
 
     let res = call_contract(
         contract_address=contract_address,
@@ -112,7 +118,12 @@ func deploy_work_proxy_contract{
         calldata=initialize_calldata,
     );
 
-    WorkContractDeployed.emit(name=name, caller=caller_address, contract_address=contract_address);
+    WorkContractDeployed.emit(
+        name=name, 
+        caller=caller_address, 
+        contract_address=contract_address,
+        payees_contract=payeesContract
+    );
 
     return(contract_address,);
 }
