@@ -1,42 +1,35 @@
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: Apache 2.0
 
 %lang starknet
 
-//  * ======================= *
-//  * ======= IMPORTS ======= *
-//  * ======================= *
-
 from starkware.cairo.common.cairo_builtins import HashBuiltin
 from starkware.cairo.common.uint256 import Uint256
-from starkware.cairo.common.alloc import alloc
-from starkware.starknet.common.syscalls import get_caller_address
-from starkware.cairo.common.math import assert_not_equal
 from starkware.cairo.common.bool import TRUE
 
-from openzeppelin.introspection.erc165.library import ERC165
-from openzeppelin.token.erc721.library import ERC721
+from openzeppelin.upgrades.library import Proxy
 from openzeppelin.access.accesscontrol.library import AccessControl
 from openzeppelin.utils.constants.library import DEFAULT_ADMIN_ROLE
 from openzeppelin.security.pausable.library import Pausable
 
-from cosmicroses.work.library import WORK
+from cosmicroses.payees.library import PAYEES, Payee
 
 //  * ======================= *
 //  * ===== CONSTRUCTOR ===== *
 //  * ======================= *
 
-@constructor
-func constructor{
+@external
+func initializer{
         syscall_ptr: felt*,
         pedersen_ptr: HashBuiltin*,
         range_check_ptr
     }(
-        payeesContract: felt, 
-        name: felt, 
-        symbol: felt,
-        admin: felt
+        admin,
+        proxy_admin: felt,
+        payees_len: felt, 
+        payees: Payee*
     ){
-    WORK.initializer(payeesContract, name, symbol, admin);
+    Proxy.initializer(proxy_admin);
+    PAYEES.initializer(admin, payees_len, payees);
     return ();
 }
 
@@ -44,84 +37,68 @@ func constructor{
 //  * ======= GETTERS ======= *
 //  * ======================= *
 
-// WORK
+// PAYEES
 
-func getWorkPayeesContract{
+func balance{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}(token: felt) -> (
+    balance: Uint256
+) {
+    let (balance) = PAYEES.balance(token);
+    return (balance,);
+}
+
+func payeeCount{
     syscall_ptr: felt*, 
     pedersen_ptr: HashBuiltin*, 
     range_check_ptr
-}() -> (payeesContract: felt){
-    let(payeesContract) = WORK.get_work_payees_contract();
-    return (payeesContract,);
-}  
+}() -> (payeeCount: felt){
+    let (count) = PAYEES.payee_count();
+    return(count,);
+}
 
-func getRecordPayeesContract{
+func getPayeeByIndex{
     syscall_ptr: felt*, 
     pedersen_ptr: HashBuiltin*, 
     range_check_ptr
-}(tokenId: Uint256) -> (payeesContract: felt){
-    let(payeesContract) = WORK.get_record_payees_contract(tokenId);
-    return (payeesContract,);
+}(index: felt) -> (payee: Payee){
+    let (payee) = PAYEES.get_payee_by_index(index);
+    return(payee,);
 }  
 
-// ERC165
-
-@view
-func supportsInterface{
-    syscall_ptr: felt*,
-    pedersen_ptr: HashBuiltin*,
+func getPayeeByAddress{
+    syscall_ptr: felt*, 
+    pedersen_ptr: HashBuiltin*, 
     range_check_ptr
-}(interfaceId: felt) -> (success: felt) {
-    return ERC165.supports_interface(interfaceId);
+}(address: felt) -> (payee: Payee) {
+    let (payee) = PAYEES.get_payee_by_address(address);
+    return(payee,);
 }
 
-// ERC721
-
-@view
-func balanceOf{
-        syscall_ptr: felt*,
-        pedersen_ptr: HashBuiltin*,
-        range_check_ptr
-}(owner: felt) -> (balance: Uint256) {
-    return ERC721.balance_of(owner);
+func totalShares{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}() -> (
+    totalShares: felt
+) {
+    let (total) = PAYEES.total_shares();
+    return (total,);
 }
 
-@view
-func ownerOf{
-    syscall_ptr: felt*,
-    pedersen_ptr: HashBuiltin*,
-    range_check_ptr
-}(tokenId: Uint256) -> (owner: felt) {
-    return ERC721.owner_of(tokenId);
+func totalReleased{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}(
+    token: felt
+) -> (totalReleased: Uint256) {
+    let (total) = PAYEES.total_released(token);
+    return (total,);
 }
 
-@view
-func tokenURI{
-    syscall_ptr: felt*,
-    pedersen_ptr: HashBuiltin*,
-    range_check_ptr
-}(tokenId: Uint256) -> (tokenURI: felt) {
-    let (tokenURI) = ERC721.token_uri(tokenId);
-    return (tokenURI=tokenURI);
+func released{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}(
+    token: felt, payeeAddress: felt
+) -> (released: Uint256) {
+    let (released) = PAYEES.released(token, payeeAddress);
+    return (released,);
 }
 
-@view
-func getApproved{
-        syscall_ptr: felt*,
-        pedersen_ptr: HashBuiltin*,
-        range_check_ptr
-}(tokenId: Uint256) -> (approved: felt) {
-    return ERC721.get_approved(tokenId);
-}
-
-@view
-func isApprovedForAll{
-        syscall_ptr: felt*,
-        pedersen_ptr: HashBuiltin*,
-        range_check_ptr
-}(owner: felt, operator: felt) -> (isApproved: felt) {
-    let (isApproved) = ERC721.is_approved_for_all(owner, operator);
-    return (isApproved=isApproved);
+func pendingPayment{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}(
+    token: felt, payeeAddress: felt
+) -> (payment: Uint256) {
+    let (payment: Uint256) = PAYEES.pending_payment(token, payeeAddress);
+    return (payment,);
 }
 
 //  ACCESS_CONTROL
@@ -146,6 +123,18 @@ func getRoleAdmin{
     return (admin,);
 }
 
+//  UPGRADE
+
+@view
+func getImplementationHash{
+        syscall_ptr: felt*,
+        pedersen_ptr: HashBuiltin*,
+        range_check_ptr
+    }() -> (implementation: felt){
+    let (implementation) = Proxy.get_implementation_hash();
+    return (implementation,);
+}
+
 //  PAUSABLE
 
 @view
@@ -161,39 +150,30 @@ func paused{
 //  * ====== EXTERNALS ====== *
 //  * ======================= *
 
-// WORK
+// PAYEES
 
-@external
-func createRecord{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}(
-    tokenURI: felt, payeesContract: felt
+func setPayee{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}(
+    address: felt, shares: felt
 ) -> (success: felt) {
     Pausable.assert_not_paused();
-    WORK.create_record(tokenURI, payeesContract);
+    PAYEES.set_payee(address, shares);
     return(TRUE,);
 }
 
-// ERC721
-
-@external
-func approve{
-        syscall_ptr: felt*,
-        pedersen_ptr: HashBuiltin*,
-        range_check_ptr
-}(to: felt, tokenId: Uint256) -> (success: felt) {
+func setBatchPayees{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}(
+    payees_len: felt, payees: Payee*
+) -> (success: felt) {
     Pausable.assert_not_paused();
-    ERC721.approve(to, tokenId);
+    PAYEES.set_batch_payees(payees_len, payees);
     return(TRUE,);
 }
 
-@external
-func setApprovalForAll{
-        syscall_ptr: felt*,
-        pedersen_ptr: HashBuiltin*,
-        range_check_ptr
-}(operator: felt, approved: felt) -> (success: felt) {
+func release{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}(
+    token: felt, payeeAddress: felt
+) -> (success: felt) {
     Pausable.assert_not_paused();
-    ERC721.set_approval_for_all(operator, approved);
-    return(TRUE,);
+    PAYEES.release(token, payeeAddress);
+    return (TRUE,);
 }
 
 //  ACCESS_CONTROL
@@ -228,6 +208,19 @@ func renounceRole{
     return(TRUE,);
 }
 
+//  UPGRADE
+
+@external
+func upgradeContract{
+        syscall_ptr: felt*,
+        pedersen_ptr: HashBuiltin*,
+        range_check_ptr
+    }(newImplementation: felt) -> (){
+    Proxy.assert_only_admin();
+    Proxy._set_implementation_hash(newImplementation);
+    return ();
+}
+
 //  PAUSABLE
 
 @external
@@ -251,3 +244,4 @@ func unpause{
     Pausable._unpause();
     return ();
 }
+

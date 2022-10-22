@@ -8,9 +8,6 @@
 
 from starkware.cairo.common.cairo_builtins import HashBuiltin
 from starkware.cairo.common.uint256 import Uint256
-from starkware.cairo.common.alloc import alloc
-from starkware.starknet.common.syscalls import get_caller_address
-from starkware.cairo.common.math import assert_not_equal
 from starkware.cairo.common.bool import TRUE
 
 from openzeppelin.upgrades.library import Proxy
@@ -18,6 +15,7 @@ from openzeppelin.introspection.erc165.library import ERC165
 from openzeppelin.token.erc721.library import ERC721
 from openzeppelin.access.accesscontrol.library import AccessControl
 from openzeppelin.utils.constants.library import DEFAULT_ADMIN_ROLE
+from openzeppelin.security.pausable.library import Pausable
 
 from cosmicroses.work.library import WORK
 
@@ -178,6 +176,17 @@ func getImplementationHash{
     return (implementation,);
 }
 
+//  PAUSABLE
+
+@view
+func paused{
+        syscall_ptr: felt*,
+        pedersen_ptr: HashBuiltin*,
+        range_check_ptr
+}() -> (paused: felt) {
+    return Pausable.is_paused();
+}
+
 //  * ======================= *
 //  * ====== EXTERNALS ====== *
 //  * ======================= *
@@ -196,6 +205,7 @@ func setVar{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}(
 func createRecord{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}(
     tokenURI: felt, payeesContract: felt
 ) -> (success: felt) {
+    Pausable.assert_not_paused();
     WORK.create_record(tokenURI, payeesContract);
     return(TRUE,);
 }
@@ -208,6 +218,7 @@ func approve{
         pedersen_ptr: HashBuiltin*,
         range_check_ptr
 }(to: felt, tokenId: Uint256) -> (success: felt) {
+    Pausable.assert_not_paused();
     ERC721.approve(to, tokenId);
     return(TRUE,);
 }
@@ -218,6 +229,7 @@ func setApprovalForAll{
         pedersen_ptr: HashBuiltin*,
         range_check_ptr
 }(operator: felt, approved: felt) -> (success: felt) {
+    Pausable.assert_not_paused();
     ERC721.set_approval_for_all(operator, approved);
     return(TRUE,);
 }
@@ -264,5 +276,29 @@ func upgradeContract{
     }(newImplementation: felt) -> (){
     Proxy.assert_only_admin();
     Proxy._set_implementation_hash(newImplementation);
+    return ();
+}
+
+//  PAUSABLE
+
+@external
+func pause{
+        syscall_ptr: felt*,
+        pedersen_ptr: HashBuiltin*,
+        range_check_ptr
+}() {
+    AccessControl.assert_only_role(DEFAULT_ADMIN_ROLE);
+    Pausable._pause();
+    return ();
+}
+
+@external
+func unpause{
+        syscall_ptr: felt*,
+        pedersen_ptr: HashBuiltin*,
+        range_check_ptr
+}() {
+    AccessControl.assert_only_role(DEFAULT_ADMIN_ROLE);
+    Pausable._unpause();
     return ();
 }
