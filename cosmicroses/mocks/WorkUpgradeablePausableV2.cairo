@@ -41,9 +41,9 @@ func initializer{
         name: felt, 
         symbol: felt,
         admin: felt,
-        proxy_admin: felt
+        proxyAdmin: felt
     ){
-    Proxy.initializer(proxy_admin);
+    Proxy.initializer(proxyAdmin);
     WORK.initializer(payeesContract, name, symbol, admin);
     return ();
 }
@@ -64,6 +64,7 @@ func getVar{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}() -
 
 // WORK
 
+@view
 func getWorkPayeesContract{
     syscall_ptr: felt*, 
     pedersen_ptr: HashBuiltin*, 
@@ -73,6 +74,7 @@ func getWorkPayeesContract{
     return (payeesContract,);
 }  
 
+@view
 func getRecordPayeesContract{
     syscall_ptr: felt*, 
     pedersen_ptr: HashBuiltin*, 

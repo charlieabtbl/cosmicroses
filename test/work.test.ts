@@ -2,8 +2,7 @@ import { expect } from "chai";
 import { starknet } from "hardhat";
 import { Account, StarknetContract } from "hardhat/types";
 import { uint256 } from "starknet";
-import { ContributorType } from "./interfaces/contributor.interfaces";
-import { RECORDING_LICENSEE, setAndGetContributors } from "./utils";
+import { RECORDING_LICENSEE } from "./utils";
 
 let default_admin: Account;
 let work_contributor_1: Account;

@@ -33,9 +33,9 @@ func initializer{
         name: felt, 
         symbol: felt,
         admin: felt,
-        proxy_admin: felt
+        proxyAdmin: felt
     ){
-    Proxy.initializer(proxy_admin);
+    Proxy.initializer(proxyAdmin);
     WORK.initializer(payeesContract, name, symbol, admin);
     return ();
 }
