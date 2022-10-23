@@ -14,16 +14,20 @@ let rec_contributor_2: Account;
 let rec_contributor_3: Account;
 let rec_licensee_1: Account;
 let rec_licensee_2: Account;
-let contract: StarknetContract;
 
-const name = starknet.shortStringToBigInt("test");
-const symbol = starknet.shortStringToBigInt("TST");
+let workContract: StarknetContract;
+let workPayeesContract: StarknetContract;
+let recordPayeesContract: StarknetContract;
+
+const name = starknet.shortStringToBigInt("work");
+const symbol = starknet.shortStringToBigInt("WRK");
 
 describe("Test Work.cairo", function () {
   this.timeout(300_000);
 
   before(async () => {
     /* ==== DEPLOY ACCOUNTS ==== */
+
     default_admin = await starknet.deployAccount("OpenZeppelin");
     work_contributor_1 = await starknet.deployAccount("OpenZeppelin");
     work_contributor_2 = await starknet.deployAccount("OpenZeppelin");
@@ -34,18 +38,57 @@ describe("Test Work.cairo", function () {
     rec_licensee_1 = await starknet.deployAccount("OpenZeppelin");
     rec_licensee_2 = await starknet.deployAccount("OpenZeppelin");
 
-    const contractFactory = await starknet.getContractFactory("Work");
-    console.log("Started deployment");
-    contract = await contractFactory.deploy({
+    /* ==== DEPLOY PAYEES CONTRACTS ==== */
+    const workContributors = [
+      { address: work_contributor_1.address, shares: 150n },
+      { address: work_contributor_2.address, shares: 100n },
+      { address: work_contributor_3.address, shares: 50n },
+    ];
+
+    const recContributors = [
+      { address: rec_contributor_1.address, shares: 150n },
+      { address: rec_contributor_2.address, shares: 100n },
+      { address: rec_contributor_3.address, shares: 50n },
+    ];
+
+    const payeesContractFactory = await starknet.getContractFactory("Payees");
+
+    // WORK CONTRIBUTORS:
+    workPayeesContract = await payeesContractFactory.deploy({
+      admin: default_admin.address,
+      payees: workContributors,
+    });
+
+    expect(workPayeesContract.deployTxHash.startsWith("0x")).to.be.true;
+    console.log("WORK CONTRIBUTORS: Deployed at", workPayeesContract.address);
+    expect(workPayeesContract.address.startsWith("0x")).to.be.true;
+
+    // RECORD CONTRIBUTORS:
+    recordPayeesContract = await payeesContractFactory.deploy({
+      admin: default_admin.address,
+      payees: recContributors,
+    });
+
+    expect(recordPayeesContract.deployTxHash.startsWith("0x")).to.be.true;
+    console.log(
+      "RECORD CONTRIBUTORS: Deployed at",
+      recordPayeesContract.address
+    );
+    expect(recordPayeesContract.address.startsWith("0x")).to.be.true;
+
+    // /* ==== DEPLOY WORK ==== */
+
+    const workContractFactory = await starknet.getContractFactory("Work");
+    workContract = await workContractFactory.deploy({
+      payeesContract: workPayeesContract.address,
       name: name,
       symbol: symbol,
       admin: default_admin.address,
     });
 
-    console.log("Deployment transaction hash:", contract.deployTxHash);
-    expect(contract.deployTxHash.startsWith("0x")).to.be.true;
-    console.log("Deployed at", contract.address);
-    expect(contract.address.startsWith("0x")).to.be.true;
+    expect(workContract.deployTxHash.startsWith("0x")).to.be.true;
+    console.log("WORK CONTRACT: Deployed at", workContract.address);
+    expect(workContract.address.startsWith("0x")).to.be.true;
   });
 
   //  * ======================= *
@@ -56,19 +99,19 @@ describe("Test Work.cairo", function () {
     const role = BigInt(RECORDING_LICENSEE);
 
     it("should grant RECORDING_LICENSEE role", async () => {
-      await default_admin.invoke(contract, "grantRole", {
+      await default_admin.invoke(workContract, "grantRole", {
         role,
         user: rec_licensee_1.address,
       });
 
       const role_rec_licensee_1 = (
-        await contract.call("hasRole", {
+        await workContract.call("hasRole", {
           role,
           user: rec_licensee_1.address,
         })
       ).has_role;
       const role_rec_licensee_2 = (
-        await contract.call("hasRole", {
+        await workContract.call("hasRole", {
           role,
           user: rec_licensee_2.address,
         })
@@ -80,7 +123,7 @@ describe("Test Work.cairo", function () {
 
     it("should revert, only default_admin can grant a role", async () => {
       try {
-        await rec_licensee_2.invoke(contract, "grantRole", {
+        await rec_licensee_2.invoke(workContract, "grantRole", {
           role,
           user: rec_licensee_2.address,
         });
@@ -90,26 +133,26 @@ describe("Test Work.cairo", function () {
     });
 
     it("should revoke RECORDING_LICENSEE role", async () => {
-      await default_admin.invoke(contract, "grantRole", {
+      await default_admin.invoke(workContract, "grantRole", {
         role,
         user: rec_licensee_2.address,
       });
 
       let role_rec_licensee_2 = (
-        await contract.call("hasRole", {
+        await workContract.call("hasRole", {
           role,
           user: rec_licensee_2.address,
         })
       ).has_role;
       expect(role_rec_licensee_2).to.deep.equal(1n);
 
-      await default_admin.invoke(contract, "revokeRole", {
+      await default_admin.invoke(workContract, "revokeRole", {
         role,
         user: rec_licensee_2.address,
       });
 
       role_rec_licensee_2 = (
-        await contract.call("hasRole", {
+        await workContract.call("hasRole", {
           role,
           user: rec_licensee_2.address,
         })
@@ -119,121 +162,41 @@ describe("Test Work.cairo", function () {
   });
 
   //  * ======================= *
-  //  *   WORK CONTRIBUTORS     *
-  //  * ======================= *
-
-  describe("Test Work Contributors", () => {
-    it("should set single work contributor", async () => {
-      await default_admin.invoke(contract, "setWorkContributor", {
-        address: work_contributor_1.address,
-        share: 100n,
-      });
-
-      const { contributor } = await contract.call(
-        "getWorkContributorByAddress",
-        {
-          address: work_contributor_1.address,
-        }
-      );
-      expect(contributor.address).to.deep.equal(
-        BigInt(work_contributor_1.address)
-      );
-      expect(contributor.share).to.deep.equal(100n);
-    });
-    it("should set multiple work contributors", async () => {
-      const contributors = [
-        { address: work_contributor_1.address, share: 150n },
-        { address: work_contributor_2.address, share: 100n },
-        { address: work_contributor_3.address, share: 50n },
-      ];
-
-      const _setAndGetContributors = await setAndGetContributors(
-        default_admin,
-        contract,
-        contributors,
-        ContributorType.WORK
-      );
-      _setAndGetContributors.map((contributor, index) => {
-        expect(contributor.address).to.deep.equal(
-          BigInt(contributors[index].address)
-        );
-        expect(contributor.share).to.deep.equal(contributors[index].share);
-      });
-    });
-    it("should update multiple work contributors", async () => {
-      const updateContributors = [
-        { address: work_contributor_1.address, share: 200n },
-        { address: work_contributor_3.address, share: 1000n },
-      ];
-      const _setAndGetContributors = await setAndGetContributors(
-        default_admin,
-        contract,
-        updateContributors,
-        ContributorType.WORK
-      );
-      _setAndGetContributors.map((contributor, index) => {
-        expect(contributor.address).to.deep.equal(
-          BigInt(updateContributors[index].address)
-        );
-        expect(contributor.share).to.deep.equal(
-          updateContributors[index].share
-        );
-      });
-    });
-    it("should revert if the setter is not default_admin", async () => {
-      try {
-        await work_contributor_1.invoke(contract, "setWorkContributor", {
-          address: work_contributor_1.address,
-          share: 100n,
-        });
-      } catch (err: any) {
-        expect(err.message).to.contain("caller is missing role 0");
-      }
-    });
-  });
-
-  //  * ======================= *
   //  * ==== CREATE RECORD ==== *
   //  * ======================= *
 
   describe("Test creating records", () => {
     it("should create two records", async () => {
-      const contributors = [
-        { address: rec_contributor_1.address, share: 150n },
-        { address: rec_contributor_2.address, share: 100n },
-        { address: rec_contributor_3.address, share: 50n },
-      ];
-
-      await rec_licensee_1.invoke(contract, "createRecord", {
+      await rec_licensee_1.invoke(workContract, "createRecord", {
         tokenURI: starknet.shortStringToBigInt("test1.io"),
-        contributors: contributors,
+        payeesContract: recordPayeesContract.address,
       });
 
-      await rec_licensee_1.invoke(contract, "createRecord", {
+      await rec_licensee_1.invoke(workContract, "createRecord", {
         tokenURI: starknet.shortStringToBigInt("test2.io"),
-        contributors: contributors,
+        payeesContract: recordPayeesContract.address,
       });
 
       const owner = (
-        await contract.call("ownerOf", {
+        await workContract.call("ownerOf", {
           tokenId: uint256.bnToUint256(1),
         })
       ).owner;
 
       const balance = (
-        await contract.call("balanceOf", {
+        await workContract.call("balanceOf", {
           owner: rec_licensee_1.address,
         })
       ).balance.low;
 
       const tokenURI_1 = (
-        await contract.call("tokenURI", {
+        await workContract.call("tokenURI", {
           tokenId: uint256.bnToUint256(1),
         })
       ).tokenURI;
 
       const tokenURI_2 = (
-        await contract.call("tokenURI", {
+        await workContract.call("tokenURI", {
           tokenId: uint256.bnToUint256(2),
         })
       ).tokenURI;
@@ -247,29 +210,17 @@ describe("Test Work.cairo", function () {
         starknet.shortStringToBigInt("test2.io")
       );
 
-      //CHECK WHETHER THE RECORD CONTRIBUTORS HAVE BEEN SET UP
+      //CHECK WHETHER THE RECORD PAYEES HAVE BEEN SET UP
 
-      const share_contributor_1 = (
-        await contract.call("getRecordContributorByAddress", {
+      const getRecordPayeesContract = (
+        await workContract.call("getRecordPayeesContract", {
           tokenId: uint256.bnToUint256(1),
-          address: rec_contributor_1.address,
         })
-      ).contributor.share;
-      const share_contributor_2 = (
-        await contract.call("getRecordContributorByAddress", {
-          tokenId: uint256.bnToUint256(1),
-          address: rec_contributor_2.address,
-        })
-      ).contributor.share;
-      const share_contributor_3 = (
-        await contract.call("getRecordContributorByAddress", {
-          tokenId: uint256.bnToUint256(1),
-          address: rec_contributor_3.address,
-        })
-      ).contributor.share;
-      expect(share_contributor_1).to.deep.equal(contributors[0].share);
-      expect(share_contributor_2).to.deep.equal(contributors[1].share);
-      expect(share_contributor_3).to.deep.equal(contributors[2].share);
+      ).payeesContract;
+
+      expect(getRecordPayeesContract).to.deep.equal(
+        BigInt(recordPayeesContract.address)
+      );
     });
   });
 });

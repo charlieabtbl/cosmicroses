@@ -41,6 +41,7 @@ func constructor{
 
 // WORK
 
+@view
 func getWorkPayeesContract{
     syscall_ptr: felt*, 
     pedersen_ptr: HashBuiltin*, 
@@ -50,6 +51,7 @@ func getWorkPayeesContract{
     return (payeesContract,);
 }  
 
+@view
 func getRecordPayeesContract{
     syscall_ptr: felt*, 
     pedersen_ptr: HashBuiltin*, 

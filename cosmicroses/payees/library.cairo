@@ -88,7 +88,7 @@ namespace PAYEES {
         pedersen_ptr: HashBuiltin*, 
         range_check_ptr
     }(
-        admin, payees_len: felt, payees: Payee*
+        admin: felt, payees_len: felt, payees: Payee*
     ) {
         with_attr error_message("PAYEES: number of payees must be greater than zero") {
             assert_not_zero(payees_len);
@@ -96,7 +96,7 @@ namespace PAYEES {
 
         AccessControl._grant_role(DEFAULT_ADMIN_ROLE, admin);
         ERC165.register_interface(IPAYEES_ID);
-        set_batch_payees(payees_len, payees);
+        _set_batch_payees(payees_len, payees);
         return ();
     }
 
@@ -178,50 +178,8 @@ namespace PAYEES {
     }(
         address: felt, shares: felt
     ) {
-
-        alloc_locals;
         AccessControl.assert_only_role(DEFAULT_ADMIN_ROLE);
-
-        let (payees_len) = PAYEES_payees_len.read();
-        let (index) = _find_index_of_payee(address, payees_len);
-
-        let (timestamp) = get_block_timestamp();
-
-        //If payee does not exist
-        if(index == -1) {
-            PAYEES_payees.write(
-                payees_len,
-                Payee(
-                    address=address,
-                    shares=shares,
-                )
-            );
-            PAYEES_payees_len.write(payees_len + 1);
-            PayeeAdded.emit(
-                createdAt=timestamp,
-                address=address, 
-                shares=shares
-            );
-            return();
-        }
-
-        PAYEES_payees.write(
-            index,
-            Payee(
-                address=address,
-                shares=shares,
-            )
-        );
-
-        // add new shares to total shares
-        let (total_shares) = PAYEES_total_shares.read();
-        PAYEES_total_shares.write(total_shares + shares);
-
-        PayeeUpdated.emit(
-            updatedAt=timestamp,
-            address=address, 
-            shares=shares,
-        );
+        _set_payee(address, shares);
         return();
     }
 
@@ -232,27 +190,9 @@ namespace PAYEES {
     }(
         payees_len: felt, payees: Payee*
     ) {
-
-        alloc_locals;
         AccessControl.assert_only_role(DEFAULT_ADMIN_ROLE);
-
-        if(payees_len == 0) {
-            return();
-        }
-
-        let current_index = payees_len - 1;
-        let payee = payees[current_index];
-
-        set_payee(
-            address=payee.address,
-            shares=payee.shares,
-        );
-
-        let _set_batch_payees = set_batch_payees(
-            payees_len=current_index,
-            payees=payees
-        );
-        return _set_batch_payees;
+        _set_batch_payees(payees_len, payees);
+        return ();
     }
 
     func release{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}(
@@ -364,4 +304,84 @@ func _get_pending_payment{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_
     let (total_owed: Uint256, _) = SafeUint256.div_rem(x, Uint256(total_shares, 0));
     let (pending_payment) = SafeUint256.sub_le(total_owed, already_released);
     return (pending_payment,);
+}
+
+func _set_payee{
+    syscall_ptr: felt*, 
+    pedersen_ptr: HashBuiltin*, 
+    range_check_ptr
+}(
+    address: felt, shares: felt
+) {
+    alloc_locals;
+
+    let (payees_len) = PAYEES_payees_len.read();
+    let (index) = _find_index_of_payee(address, payees_len);
+
+    let (timestamp) = get_block_timestamp();
+
+    //If payee does not exist
+    if(index == -1) {
+        PAYEES_payees.write(
+            payees_len,
+            Payee(
+                address=address,
+                shares=shares,
+            )
+        );
+        PAYEES_payees_len.write(payees_len + 1);
+        PayeeAdded.emit(
+            createdAt=timestamp,
+            address=address, 
+            shares=shares
+        );
+        return();
+    }
+
+    PAYEES_payees.write(
+        index,
+        Payee(
+            address=address,
+            shares=shares,
+        )
+    );
+
+    // add new shares to total shares
+    let (total_shares) = PAYEES_total_shares.read();
+    PAYEES_total_shares.write(total_shares + shares);
+
+    PayeeUpdated.emit(
+        updatedAt=timestamp,
+        address=address, 
+        shares=shares,
+    );
+    return();
+}
+
+func _set_batch_payees{
+    syscall_ptr: felt*, 
+    pedersen_ptr: HashBuiltin*, 
+    range_check_ptr
+}(
+    payees_len: felt, payees: Payee*
+) {
+    alloc_locals;
+
+    if(payees_len == 0) {
+        return();
+    }
+
+    let current_index = payees_len - 1;
+    let payee = payees[current_index];
+
+    _set_payee(
+        address=payee.address,
+        shares=payee.shares,
+    );
+
+    let _set_batch_payees_ = _set_batch_payees(
+        payees_len=current_index,
+        payees=payees
+    );
+    return _set_batch_payees_;
 }

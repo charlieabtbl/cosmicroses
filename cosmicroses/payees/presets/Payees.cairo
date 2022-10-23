@@ -20,7 +20,7 @@ func constructor{
         pedersen_ptr: HashBuiltin*,
         range_check_ptr
     }(
-        admin, 
+        admin: felt, 
         payees_len: felt, 
         payees: Payee*
     ){
@@ -34,6 +34,7 @@ func constructor{
 
 // PAYEES
 
+@view
 func balance{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}(token: felt) -> (
     balance: Uint256
 ) {
@@ -41,6 +42,7 @@ func balance{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}(to
     return (balance,);
 }
 
+@view
 func payeeCount{
     syscall_ptr: felt*, 
     pedersen_ptr: HashBuiltin*, 
@@ -50,6 +52,7 @@ func payeeCount{
     return(count,);
 }
 
+@view
 func getPayeeByIndex{
     syscall_ptr: felt*, 
     pedersen_ptr: HashBuiltin*, 
@@ -59,6 +62,7 @@ func getPayeeByIndex{
     return(payee,);
 }  
 
+@view
 func getPayeeByAddress{
     syscall_ptr: felt*, 
     pedersen_ptr: HashBuiltin*, 
@@ -68,6 +72,7 @@ func getPayeeByAddress{
     return(payee,);
 }
 
+@view
 func totalShares{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}() -> (
     totalShares: felt
 ) {
@@ -75,6 +80,7 @@ func totalShares{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr
     return (total,);
 }
 
+@view
 func totalReleased{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}(
     token: felt
 ) -> (totalReleased: Uint256) {
@@ -82,6 +88,7 @@ func totalReleased{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_p
     return (total,);
 }
 
+@view
 func released{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}(
     token: felt, payeeAddress: felt
 ) -> (released: Uint256) {
@@ -89,6 +96,7 @@ func released{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}(
     return (released,);
 }
 
+@view
 func pendingPayment{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}(
     token: felt, payeeAddress: felt
 ) -> (payment: Uint256) {
@@ -124,6 +132,7 @@ func getRoleAdmin{
 
 // PAYEES
 
+@external
 func setPayee{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}(
     address: felt, shares: felt
 ) -> (success: felt) {
@@ -131,6 +140,7 @@ func setPayee{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}(
     return(TRUE,);
 }
 
+@external
 func setBatchPayees{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}(
     payees_len: felt, payees: Payee*
 ) -> (success: felt) {
@@ -138,6 +148,7 @@ func setBatchPayees{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_
     return(TRUE,);
 }
 
+@external
 func release{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}(
     token: felt, payeeAddress: felt
 ) -> (success: felt) {
