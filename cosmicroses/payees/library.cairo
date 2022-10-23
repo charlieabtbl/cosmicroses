@@ -111,11 +111,11 @@ namespace PAYEES {
         return (balance,);
     }
 
-    func payee_count{
+    func payees_count{
         syscall_ptr: felt*, 
         pedersen_ptr: HashBuiltin*, 
         range_check_ptr
-    }() -> (payee_count: felt){
+    }() -> (payees_count: felt){
         let (count) = PAYEES_payees_len.read();
         return(count,);
     }
@@ -335,8 +335,19 @@ func _set_payee{
             address=address, 
             shares=shares
         );
+
+        // add new shares to total shares
+        let (total_shares) = PAYEES_total_shares.read();
+        PAYEES_total_shares.write(total_shares + shares);
+
         return();
     }
+
+    // add new shares to total shares
+    let (payee) = PAYEES_payees.read(index);
+    let (previous_total_shares) = PAYEES_total_shares.read();
+    local total_shares = previous_total_shares - payee.shares;
+    PAYEES_total_shares.write(total_shares + shares);
 
     PAYEES_payees.write(
         index,
@@ -345,10 +356,6 @@ func _set_payee{
             shares=shares,
         )
     );
-
-    // add new shares to total shares
-    let (total_shares) = PAYEES_total_shares.read();
-    PAYEES_total_shares.write(total_shares + shares);
 
     PayeeUpdated.emit(
         updatedAt=timestamp,

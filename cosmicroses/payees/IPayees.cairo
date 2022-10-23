@@ -12,7 +12,7 @@ namespace IWORK {
     func balance() -> (balance: Uint256) {
     }
     
-    func payeeCount() -> (payeeCount: felt) {
+    func payeesCount() -> (payeesCount: felt) {
     }
 
     func getPayeeByIndex(index: felt) -> (payee: Payee) {

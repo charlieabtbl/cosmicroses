@@ -2,7 +2,7 @@ import { expect } from "chai";
 import { starknet } from "hardhat";
 import { Account, StarknetContract } from "hardhat/types";
 import { uint256 } from "starknet";
-import { RECORDING_LICENSEE } from "./utils";
+import { RECORDING_LICENSEE } from "../utils";
 
 let default_admin: Account;
 let work_contributor_1: Account;
@@ -75,7 +75,7 @@ describe("Test Work.cairo", function () {
     );
     expect(recordPayeesContract.address.startsWith("0x")).to.be.true;
 
-    // /* ==== DEPLOY WORK ==== */
+    /* ==== DEPLOY WORK CONTRACT ==== */
 
     const workContractFactory = await starknet.getContractFactory("Work");
     workContract = await workContractFactory.deploy({

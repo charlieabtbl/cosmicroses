@@ -48,12 +48,12 @@ func balance{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}(to
 }
 
 @view
-func payeeCount{
+func payeesCount{
     syscall_ptr: felt*, 
     pedersen_ptr: HashBuiltin*, 
     range_check_ptr
-}() -> (payeeCount: felt){
-    let (count) = PAYEES.payee_count();
+}() -> (payeesCount: felt){
+    let (count) = PAYEES.payees_count();
     return(count,);
 }
 
