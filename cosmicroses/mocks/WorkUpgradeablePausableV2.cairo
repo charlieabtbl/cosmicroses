@@ -8,9 +8,6 @@
 
 from starkware.cairo.common.cairo_builtins import HashBuiltin
 from starkware.cairo.common.uint256 import Uint256
-from starkware.cairo.common.alloc import alloc
-from starkware.starknet.common.syscalls import get_caller_address
-from starkware.cairo.common.math import assert_not_equal
 from starkware.cairo.common.bool import TRUE
 
 from openzeppelin.upgrades.library import Proxy
@@ -18,9 +15,9 @@ from openzeppelin.introspection.erc165.library import ERC165
 from openzeppelin.token.erc721.library import ERC721
 from openzeppelin.access.accesscontrol.library import AccessControl
 from openzeppelin.utils.constants.library import DEFAULT_ADMIN_ROLE
+from openzeppelin.security.pausable.library import Pausable
 
-from cosmicroses.work.library import WORK, Contributor
-from cosmicroses.utils.counter.library import Counter
+from cosmicroses.work.library import WORK
 
 //  * ======================= *
 //  * ======= STORAGE ======= *
@@ -39,15 +36,22 @@ func initializer{
         syscall_ptr: felt*,
         pedersen_ptr: HashBuiltin*,
         range_check_ptr
-    }(name: felt, symbol: felt, admin: felt, proxy_admin: felt){
-    Proxy.initializer(proxy_admin);
-    WORK.initializer(name, symbol, admin);
+    }(  
+        payeesContract: felt, 
+        name: felt, 
+        symbol: felt,
+        admin: felt,
+        proxyAdmin: felt
+    ){
+    Proxy.initializer(proxyAdmin);
+    WORK.initializer(payeesContract, name, symbol, admin);
     return ();
 }
 
 //  * ======================= *
 //  * ======= GETTERS ======= *
 //  * ======================= *
+
 @view
 func getVar{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}() ->(
     var: felt
@@ -58,24 +62,27 @@ func getVar{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}() -
     return(var,);
 }
 
-
 // WORK
 
 @view
-func getWorkContributorByAddress{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}(
-    address: felt
-) -> (contributor: Contributor) {
-    let (contributor) = WORK.get_work_contributor_by_address(address);
-    return(contributor,);
-}
+func getWorkPayeesContract{
+    syscall_ptr: felt*, 
+    pedersen_ptr: HashBuiltin*, 
+    range_check_ptr
+}() -> (payeesContract: felt){
+    let(payeesContract) = WORK.get_work_payees_contract();
+    return (payeesContract,);
+}  
 
 @view
-func getRecordContributorByAddress{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}(
-    tokenId: Uint256, address: felt
-) -> (contributor: Contributor) {
-    let (contributor) = WORK.get_record_contributor_by_address(tokenId, address);
-    return(contributor,);
-}
+func getRecordPayeesContract{
+    syscall_ptr: felt*, 
+    pedersen_ptr: HashBuiltin*, 
+    range_check_ptr
+}(tokenId: Uint256) -> (payeesContract: felt){
+    let(payeesContract) = WORK.get_record_payees_contract(tokenId);
+    return (payeesContract,);
+}  
 
 // ERC165
 
@@ -171,6 +178,17 @@ func getImplementationHash{
     return (implementation,);
 }
 
+//  PAUSABLE
+
+@view
+func paused{
+        syscall_ptr: felt*,
+        pedersen_ptr: HashBuiltin*,
+        range_check_ptr
+}() -> (paused: felt) {
+    return Pausable.is_paused();
+}
+
 //  * ======================= *
 //  * ====== EXTERNALS ====== *
 //  * ======================= *
@@ -183,44 +201,14 @@ func setVar{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}(
     return();
 }
 
-
-@external
-func setWorkContributor{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}(
-    address: felt, share: felt
-) -> (success: felt) {
-    WORK.set_work_contributor(address, share);
-    return(TRUE,);
-}
-
-@external
-func setRecordContributor{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}(
-    address: felt, share: felt, tokenId: Uint256
-) -> (success: felt) {
-    WORK.set_record_contributor(address, share, tokenId);
-    return(TRUE,);
-}
-
-@external
-func setBatchWorkContributors{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}(
-    contributors_len: felt, contributors: Contributor*
-) -> (success: felt) {
-    WORK.set_batch_work_contributors(contributors_len, contributors);
-    return(TRUE,);
-}
-
-@external
-func setBatchRecordContributors{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}(
-    tokenId: Uint256, contributors_len: felt, contributors: Contributor*
-) -> (success: felt) {
-    WORK.set_batch_record_contributors(tokenId, contributors_len, contributors);
-    return(TRUE,);
-}
+// WORK
 
 @external
 func createRecord{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}(
-    tokenURI: felt, contributors_len: felt, contributors: Contributor*
+    tokenURI: felt, payeesContract: felt
 ) -> (success: felt) {
-    WORK.create_record(tokenURI, contributors_len, contributors);
+    Pausable.assert_not_paused();
+    WORK.create_record(tokenURI, payeesContract);
     return(TRUE,);
 }
 
@@ -232,6 +220,7 @@ func approve{
         pedersen_ptr: HashBuiltin*,
         range_check_ptr
 }(to: felt, tokenId: Uint256) -> (success: felt) {
+    Pausable.assert_not_paused();
     ERC721.approve(to, tokenId);
     return(TRUE,);
 }
@@ -242,6 +231,7 @@ func setApprovalForAll{
         pedersen_ptr: HashBuiltin*,
         range_check_ptr
 }(operator: felt, approved: felt) -> (success: felt) {
+    Pausable.assert_not_paused();
     ERC721.set_approval_for_all(operator, approved);
     return(TRUE,);
 }
@@ -285,8 +275,32 @@ func upgradeContract{
         syscall_ptr: felt*,
         pedersen_ptr: HashBuiltin*,
         range_check_ptr
-    }(newImplementation: felt) -> (success: felt){
+    }(newImplementation: felt) -> (){
     Proxy.assert_only_admin();
     Proxy._set_implementation_hash(newImplementation);
-    return(TRUE,);
+    return ();
+}
+
+//  PAUSABLE
+
+@external
+func pause{
+        syscall_ptr: felt*,
+        pedersen_ptr: HashBuiltin*,
+        range_check_ptr
+}() {
+    AccessControl.assert_only_role(DEFAULT_ADMIN_ROLE);
+    Pausable._pause();
+    return ();
+}
+
+@external
+func unpause{
+        syscall_ptr: felt*,
+        pedersen_ptr: HashBuiltin*,
+        range_check_ptr
+}() {
+    AccessControl.assert_only_role(DEFAULT_ADMIN_ROLE);
+    Pausable._unpause();
+    return ();
 }

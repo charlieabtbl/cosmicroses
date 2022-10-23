@@ -1,48 +1,33 @@
 import { Account, StarknetContract } from "hardhat/types";
-import {
-  Contributor,
-  ContributorType,
-} from "./interfaces/contributor.interfaces";
+import { PayeeInterface } from "./interface";
 
 export const RECORDING_LICENSEE =
   "0x4f96f87f6963bb246f2c30526628466840c642dc5c50d5a67777c6cc0e44ab5";
 
-export async function setAndGetContributors(
+export async function setAndGetPayees(
   caller: Account,
   contract: StarknetContract,
-  contributors: Contributor[],
-  contributorType: ContributorType
-): Promise<Contributor[]> {
-  let getContributors: Contributor[] = [];
+  payees: PayeeInterface[]
+): Promise<PayeeInterface[]> {
+  let getPayees: PayeeInterface[] = [];
 
-  if (contributors.length > 0) {
-    // SET CONTRIBUTORS
-    await caller.invoke(
-      contract,
-      contributorType == ContributorType.WORK
-        ? "setBatchWorkContributors"
-        : "setBatchRecordContributors",
-      {
-        contributors: contributors,
-      }
-    );
+  if (payees.length > 0) {
+    // SET PAYEES
+    await caller.invoke(contract, "setBatchPayees", {
+      payees: payees,
+    });
 
-    // GET CONTRIBUTORS
+    // GET PAYEES
 
-    for (let i = 0; i < contributors.length; i++) {
-      const contributor_: Contributor = (
-        await contract.call(
-          contributorType == ContributorType.WORK
-            ? "getWorkContributorByAddress"
-            : "getRecordContributorByAddress",
-          {
-            address: contributors[i].address,
-          }
-        )
-      ).contributor;
+    for (let i = 0; i < payees.length; i++) {
+      const _payee: PayeeInterface = (
+        await contract.call("getPayeeByAddress", {
+          address: payees[i].address,
+        })
+      ).payee;
 
-      getContributors.push(contributor_);
+      getPayees.push(_payee);
     }
   }
-  return getContributors;
+  return getPayees;
 }
