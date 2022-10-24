@@ -1,6 +1,10 @@
 import { Account, StarknetContract } from "hardhat/types";
 import { PayeeInterface } from "./interface";
 
+export const IWORK_ID = 0x12345678;
+export const IPAYEES_ID = 0x87654321;
+export const IERC721_ID = 0x80ac58cd;
+
 export const RECORDING_LICENSEE =
   "0x4f96f87f6963bb246f2c30526628466840c642dc5c50d5a67777c6cc0e44ab5";
 

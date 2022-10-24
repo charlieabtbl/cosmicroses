@@ -2,7 +2,7 @@ import { expect } from "chai";
 import { starknet } from "hardhat";
 import { Account, StarknetContract } from "hardhat/types";
 import { uint256 } from "starknet";
-import { RECORDING_LICENSEE } from "../utils";
+import { IERC721_ID, IWORK_ID, RECORDING_LICENSEE } from "../utils";
 
 let default_admin: Account;
 let work_contributor_1: Account;
@@ -21,7 +21,7 @@ let recordPayeesContract: StarknetContract;
 const name = starknet.shortStringToBigInt("work");
 const symbol = starknet.shortStringToBigInt("WRK");
 
-describe("Test Work.cairo", function () {
+describe("TEST WORK.CAIRO", function () {
   this.timeout(300_000);
 
   before(async () => {
@@ -90,11 +90,7 @@ describe("Test Work.cairo", function () {
     expect(workContract.address.startsWith("0x")).to.be.true;
   });
 
-  //  * ======================= *
-  //  * ======== ROLES ======== *
-  //  * ======================= *
-
-  describe("Test Roles", () => {
+  describe("TEST ROLES", () => {
     const role = BigInt(RECORDING_LICENSEE);
 
     it("should grant RECORDING_LICENSEE role", async () => {
@@ -160,11 +156,7 @@ describe("Test Work.cairo", function () {
     });
   });
 
-  //  * ======================= *
-  //  * ==== CREATE RECORD ==== *
-  //  * ======================= *
-
-  describe("Test creating records", () => {
+  describe("TEST CREATE RECORDS", () => {
     it("should create two records", async () => {
       await rec_licensee_1.invoke(workContract, "createRecord", {
         tokenURI: starknet.shortStringToBigInt("test1.io"),
@@ -220,6 +212,59 @@ describe("Test Work.cairo", function () {
       expect(getRecordPayeesContract).to.deep.equal(
         BigInt(recordPayeesContract.address)
       );
+    });
+  });
+
+  describe("TEST PAYEES", () => {
+    it("should return return work payees contract", async () => {
+      const _workPayeesContract = (
+        await workContract.call("getWorkPayeesContract")
+      ).payeesContract;
+
+      expect(_workPayeesContract).to.deep.equal(
+        BigInt(workPayeesContract.address)
+      );
+    });
+
+    it("should return record payees contract", async () => {
+      const _recordPayeesContract = (
+        await workContract.call("getRecordPayeesContract", {
+          tokenId: uint256.bnToUint256(1),
+        })
+      ).payeesContract;
+
+      expect(_recordPayeesContract).to.deep.equal(
+        BigInt(recordPayeesContract.address)
+      );
+    });
+  });
+
+  describe("TEST SUPPORT INTERFACES", () => {
+    it("should return TRUE if interface is supported", async () => {
+      const supportsWorkInterface = (
+        await workContract.call("supportsInterface", {
+          interfaceId: IWORK_ID,
+        })
+      ).success;
+
+      const supportsERC721Interface = (
+        await workContract.call("supportsInterface", {
+          interfaceId: IERC721_ID,
+        })
+      ).success;
+
+      expect(supportsWorkInterface).to.be.equal(1n);
+      expect(supportsERC721Interface).to.be.equal(1n);
+    });
+
+    it("should return FALSE if interface is not supported", async () => {
+      const supportsRandomInterface = (
+        await workContract.call("supportsInterface", {
+          interfaceId: 0x894c58cd,
+        })
+      ).success;
+
+      expect(supportsRandomInterface).to.be.equal(0n);
     });
   });
 });
