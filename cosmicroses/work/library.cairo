@@ -115,7 +115,6 @@ namespace WORK {
     func create_record{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}(
         token_uri: felt, payees_contract: felt
     ) {
-        alloc_locals;
         AccessControl.assert_only_role(RECORDING_LICENSEE);
 
         //Increment token_id
@@ -153,8 +152,6 @@ func _assert_only_token_owner{
     pedersen_ptr : HashBuiltin*,
     range_check_ptr
 }(token_id: Uint256){
-
-    alloc_locals;
     let (caller) = get_caller_address();
     let (owner_of) = ERC721.owner_of(token_id);
 

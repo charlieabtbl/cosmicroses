@@ -198,7 +198,6 @@ namespace PAYEES {
     func release{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}(
         token: felt, payee_address: felt
     ) {
-        alloc_locals;
         let (payment) = _get_pending_payment(token, payee_address);
 
         with_attr error_message("PAYEES: payee is not due any payment") {
@@ -234,7 +233,6 @@ func _find_index_of_payee {
     pedersen_ptr : HashBuiltin*,
     range_check_ptr
 }(address: felt, counter: felt) -> (res: felt) {
-
     if(counter == 0) {
         return(-1,);
     }
@@ -263,8 +261,6 @@ func _get_payee_by_address{
     pedersen_ptr: HashBuiltin*, 
     range_check_ptr
 }(address: felt) -> (payee: Payee) {
-
-    alloc_locals;
     let (payees_len) = PAYEES_payees_len.read();
     let (index) = _find_index_of_payee(address, payees_len);
 
@@ -314,7 +310,7 @@ func _set_payee{
     address: felt, shares: felt
 ) {
     alloc_locals;
-
+    
     let (payees_len) = PAYEES_payees_len.read();
     let (index) = _find_index_of_payee(address, payees_len);
 
@@ -372,8 +368,6 @@ func _set_batch_payees{
 }(
     payees_len: felt, payees: Payee*
 ) {
-    alloc_locals;
-
     if(payees_len == 0) {
         return();
     }
